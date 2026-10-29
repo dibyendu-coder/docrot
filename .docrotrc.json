@@ -1,0 +1,18 @@
+{
+  "ignore": [
+    "node_modules",
+    "dist",
+    "build",
+    "coverage",
+    "vendor"
+  ],
+  "rules": {
+    "link/missing-target": "error",
+    "link/invalid-fragment": "warning",
+    "link/broken-reference": "error",
+    "link/malformed-path": "error",
+    "npm/missing-script": "error",
+    "make/missing-target": "error",
+    "env/missing-example": "warning"
+  }
+}
