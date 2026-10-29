@@ -209,4 +209,42 @@ describe("Scanner Edge Cases & Advanced Features", () => {
 
     await expect(runScan({ targetDir: jsonFile })).rejects.toThrow("Specified path is not a directory");
   });
+
+  it("never executes shell commands found in documentation", async () => {
+    const markerFile = path.join(tempDir, "existing-marker.txt");
+    const createdFile = path.join(tempDir, "should-not-exist.txt");
+    const injectedFile = path.join(tempDir, "injected.txt");
+    await fs.writeFile(markerFile, "initial content");
+
+    const dangerousDoc = path.join(tempDir, "dangerous.md");
+    await fs.writeFile(
+      dangerousDoc,
+      `# Commands
+\`\`\`bash
+rm -rf existing-marker.txt
+touch should-not-exist.txt
+echo "injected" > injected.txt
+npm run remove-all
+make wipe-everything
+\`\`\`
+
+Inline command: \`rm -rf existing-marker.txt\`
+`
+    );
+
+    const result = await runScan({ targetDir: tempDir });
+
+    // Verify existing file was not removed
+    const markerStats = await fs.stat(markerFile).catch(() => null);
+    expect(markerStats).not.toBeNull();
+
+    // Verify files were not created
+    const createdStats = await fs.stat(createdFile).catch(() => null);
+    expect(createdStats).toBeNull();
+
+    const injectedStats = await fs.stat(injectedFile).catch(() => null);
+    expect(injectedStats).toBeNull();
+
+    expect(result.summary.filesScanned).toBe(1);
+  });
 });

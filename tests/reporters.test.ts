@@ -10,6 +10,9 @@ import type { ScanResult } from "../src/types.js";
 
 describe("JSON & Terminal Reporters", () => {
   const sampleResult: ScanResult = {
+    status: "error",
+    passed: false,
+    scannedFiles: ["README.md", "docs/setup.md"],
     findings: [
       {
         ruleId: "link/missing-target",
@@ -41,6 +44,8 @@ describe("JSON & Terminal Reporters", () => {
       warnings: 1,
       infos: 1,
       filesScanned: 2,
+      passed: false,
+      status: "error",
     },
     metadata: {
       targetDir: "/repo",
@@ -53,7 +58,8 @@ describe("JSON & Terminal Reporters", () => {
   describe("formatJsonReport", () => {
     it("formats ScanResult as pretty-printed JSON by default", () => {
       const output = formatJsonReport(sampleResult);
-      expect(output).toContain('{\n  "findings":');
+      expect(output).toContain('{\n  "status": "error"');
+      expect(output).toContain('  "findings": [');
       const parsed = JSON.parse(output);
       expect(parsed.summary.errors).toBe(1);
       expect(parsed.findings).toHaveLength(3);
@@ -68,7 +74,8 @@ describe("JSON & Terminal Reporters", () => {
 
     it("supports custom indentation", () => {
       const output = formatJsonReport(sampleResult, { indent: 4 });
-      expect(output).toContain('{\n    "findings":');
+      expect(output).toContain('{\n    "status": "error"');
+      expect(output).toContain('    "findings": [');
     });
   });
 
@@ -117,8 +124,11 @@ describe("JSON & Terminal Reporters", () => {
   describe("formatTerminalReport", () => {
     it("reports clean state when findings are empty", () => {
       const cleanResult: ScanResult = {
+        status: "success",
+        passed: true,
+        scannedFiles: ["README.md", "docs/1.md", "docs/2.md", "docs/3.md", "docs/4.md"],
         findings: [],
-        summary: { errors: 0, warnings: 0, infos: 0, filesScanned: 5 },
+        summary: { errors: 0, warnings: 0, infos: 0, filesScanned: 5, passed: true, status: "success" },
         metadata: {
           targetDir: "/repo",
           timestamp: "2026-10-30T00:00:00.000Z",

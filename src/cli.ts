@@ -115,8 +115,15 @@ export function createCli(): Command {
 
 export async function runCli(args: string[]): Promise<number> {
   const program = createCli();
-  // Override exit handling to avoid commander calling process.exit directly during tests
+  let commanderErrorMsg = "";
+
   program.exitOverride();
+  program.configureOutput({
+    writeErr: () => {},
+    outputError: (str) => {
+      commanderErrorMsg = str.replace(/^error:\s*/i, "").trim();
+    },
+  });
 
   try {
     process.exitCode = undefined;
@@ -127,8 +134,15 @@ export async function runCli(args: string[]): Promise<number> {
     if (err.code === "commander.helpDisplayed" || err.code === "commander.version") {
       return 0;
     }
+    const errorText = commanderErrorMsg || err.message || String(err);
     // Commander argument errors (unknown option, missing required arg)
-    process.stderr.write(`${colors.red(colors.bold("Argument Error:"))} ${err.message}\n`);
+    if (args.includes("--json")) {
+      process.stderr.write(
+        JSON.stringify({ error: errorText, type: "ArgumentError" }, null, 2) + "\n"
+      );
+    } else {
+      process.stderr.write(`${colors.red(colors.bold("Argument Error:"))} ${errorText}\n`);
+    }
     process.exitCode = 2;
     return 2;
   }

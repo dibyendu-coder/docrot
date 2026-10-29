@@ -32,6 +32,8 @@ export interface ScanSummary {
   warnings: number;
   infos: number;
   filesScanned: number;
+  passed?: boolean;
+  status?: "success" | "error" | "completed";
 }
 
 export interface ScanMetadata {
@@ -42,6 +44,9 @@ export interface ScanMetadata {
 }
 
 export interface ScanResult {
+  status: "success" | "error" | "completed";
+  passed: boolean;
+  scannedFiles: string[];
   findings: Finding[];
   summary: ScanSummary;
   metadata: ScanMetadata;

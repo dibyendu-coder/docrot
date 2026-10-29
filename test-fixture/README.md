@@ -1,4 +1,5 @@
-# Test Project
+# Environment setup
 
-Run `npm run build` to build project.
-Run `npm run test` to execute tests.
+Set DATABASE_URL and API_KEY.
+Also configure SECRET_KEY.
+[Broken](missing.md)

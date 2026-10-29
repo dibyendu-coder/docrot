@@ -211,4 +211,88 @@ describe("CLI Integration & Exit Codes", () => {
     expect(errJson.type).toBe("ScanError");
     expect(errJson.error).toContain("Directory does not exist or is inaccessible");
   });
+
+  it("Phase 2: docrot check --json outputs all required fields without ANSI codes or decorative logs", async () => {
+    const readme = path.join(tempDir, "README.md");
+    const guide = path.join(tempDir, "GUIDE.md");
+    await fs.writeFile(readme, "# Readme\n[Broken Target](./missing.md)");
+    await fs.writeFile(guide, "# Guide\nValid guide content.");
+
+    stdoutChunks = [];
+    stderrChunks = [];
+    const code = await runCli(["node", "docrot", "check", tempDir, "--json"]);
+    expect(code).toBe(1);
+
+    const stdoutStr = stdoutChunks.join("");
+
+    // 1. No ANSI escape sequences anywhere in stdout
+    // ANSI escapes typically start with \u001b or \x1b
+    const ansiRegex = /\u001b\[[0-9;]*m/;
+    expect(ansiRegex.test(stdoutStr)).toBe(false);
+
+    // 2. Pure JSON output without decorative header or banner logs
+    expect(stdoutStr.trim().startsWith("{")).toBe(true);
+    expect(stdoutStr.trim().endsWith("}")).toBe(true);
+
+    // 3. Must parse cleanly
+    const json = JSON.parse(stdoutStr);
+
+    // 4. Verify scan metadata
+    expect(json).toHaveProperty("metadata");
+    expect(json.metadata).toHaveProperty("targetDir");
+    expect(json.metadata).toHaveProperty("timestamp");
+    expect(json.metadata).toHaveProperty("version");
+    expect(json.metadata).toHaveProperty("durationMs");
+    expect(typeof json.metadata.durationMs).toBe("number");
+
+    // 5. Verify scanned files
+    expect(json).toHaveProperty("scannedFiles");
+    expect(Array.isArray(json.scannedFiles)).toBe(true);
+    expect(json.scannedFiles.length).toBe(2);
+
+    // 6. Verify findings
+    expect(json).toHaveProperty("findings");
+    expect(Array.isArray(json.findings)).toBe(true);
+    expect(json.findings).toHaveLength(1);
+    expect(json.findings[0].ruleId).toBe("link/missing-target");
+
+    // 7. Verify error counts and warning counts
+    expect(json).toHaveProperty("summary");
+    expect(json.summary.errors).toBe(1);
+    expect(json.summary.warnings).toBe(0);
+    expect(json.summary.filesScanned).toBe(2);
+
+    // 8. Verify completion status
+    expect(json.status).toBe("error");
+    expect(json.passed).toBe(false);
+  });
+
+  it("Phase 2: warnings alone must NOT return exit code 1 (must return 0)", async () => {
+    const readme = path.join(tempDir, "README.md");
+    // Invalid fragment anchor is a warning by default ("link/invalid-fragment": "warning")
+    await fs.writeFile(readme, "# Heading\n[Invalid Anchor](#nonexistent-anchor)");
+
+    stdoutChunks = [];
+    const code = await runCli(["node", "docrot", "check", tempDir, "--json"]);
+    // Warnings alone must return 0!
+    expect(code).toBe(0);
+
+    const json = JSON.parse(stdoutChunks.join(""));
+    expect(json.summary.errors).toBe(0);
+    expect(json.summary.warnings).toBe(1);
+    expect(json.status).toBe("success");
+    expect(json.passed).toBe(true);
+  });
+
+  it("Phase 2: exits with 2 for invalid arguments", async () => {
+    stderrChunks = [];
+    stdoutChunks = [];
+    const code = await runCli(["node", "docrot", "check", "--invalid-unrecognized-flag", "--json"]);
+    expect(code).toBe(2);
+
+    const stderrStr = stderrChunks.join("");
+    const errJson = JSON.parse(stderrStr);
+    expect(errJson.type).toBe("ArgumentError");
+    expect(errJson.error).toContain("unknown option");
+  });
 });

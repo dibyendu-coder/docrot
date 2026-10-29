@@ -1,5 +1,5 @@
 import path from "node:path";
-import { statSafe, findMarkdownFiles, isMarkdownFile } from "./utils/fs.js";
+import { statSafe, findMarkdownFiles, isMarkdownFile, normalizePath } from "./utils/fs.js";
 import { getChangedMarkdownFiles, isGitRepository } from "./utils/git.js";
 import { loadConfig, validateAndResolveConfig } from "./config.js";
 import { loadPackageJson, checkScripts } from "./checks/scripts.js";
@@ -144,14 +144,25 @@ export async function runScan(options: ScanOptions): Promise<ScanResult> {
   }
 
   const durationMs = Date.now() - startTime;
+  const scannedFiles = markdownFiles.map((f) => {
+    const rel = normalizePath(path.relative(rootDir, f));
+    return rel || normalizePath(f);
+  });
+  const passed = errors === 0;
+  const status = errors > 0 ? "error" : "success";
 
   return {
+    status,
+    passed,
+    scannedFiles,
     findings: allFindings,
     summary: {
       errors,
       warnings,
       infos,
       filesScanned: markdownFiles.length,
+      passed,
+      status,
     },
     metadata: {
       targetDir,
